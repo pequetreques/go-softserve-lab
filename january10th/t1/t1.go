@@ -2,6 +2,10 @@ package main
 
 import "fmt"
 
+/*
+There is a sequence a1, a2, ..., an with some numbers.
+All numbers are equal except for one. Write code to find it.
+*/
 func main() {
 	// numbers := [11]int{7, 7, 7, 7, 7, 7, 7, 8, 7, 7, 7}
 	// numbers := [11]int{8, 8, 8, 8, 8, 8, 8, 7, 8, 8, 8}
