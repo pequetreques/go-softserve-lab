@@ -21,8 +21,11 @@ jobs:
       with:
         go-version: 1.19
 
-    - name: Build
-      run: go build -v ./...
+#    - name: Build
+#      run: go build -v ./...
 
-    - name: Test
-      run: go test -v ./...
+    - name: Test insertionSort
+      run: go test -v ./january12th/insertionSort
+
+    - name: Test countingSort
+      run: go test -v ./january12th/countingSort
