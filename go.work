@@ -3,4 +3,5 @@ go 1.19
 use (
 	./january12th/countingSort
 	./january12th/insertionSort
+	./january13th/users
 )
