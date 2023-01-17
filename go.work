@@ -4,4 +4,5 @@ use (
 	./january12th/countingSort
 	./january12th/insertionSort
 	./january13th/users
+	./january16th/countingSort
 )

@@ -4,26 +4,38 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
+	"os"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"gopkg.in/yaml.v2"
 )
 
+type Config struct {
+	Server struct {
+		Host string `yaml:"host"`
+		Port string `yaml:"port"`
+	} `yaml:"server"`
+}
+
 type User struct {
-	ID      int    `json:"id"`
+	ID      string `json:"id"`
 	Name    string `json:"name"`
 	Surname string `json:"surname"`
 	Age     int    `json:"age"`
 }
 
+var config Config
 var users []User
-var idCounter int
 
 func main() {
 	setupAndRunUsersServer()
 }
 
 func setupAndRunUsersServer() {
+	acquireConfig(&config)
+	hostPort := config.Server.Host + ":" + config.Server.Port
+
 	log.Println("Initializing server...")
 	router := mux.NewRouter()
 	log.Println("...done")
@@ -31,28 +43,47 @@ func setupAndRunUsersServer() {
 	setupDatabase()
 
 	log.Println("Configuring server...")
+	router.HandleFunc("/api/users", createUser).Methods("POST")
 	router.HandleFunc("/api/users", getUsers).Methods("GET")
 	router.HandleFunc("/api/users/{id}", getUser).Methods("GET")
-	router.HandleFunc("/api/users", createUser).Methods("POST")
 	router.HandleFunc("/api/users/{id}", updateUser).Methods("PUT")
 	router.HandleFunc("/api/users/{id}", deleteUser).Methods("DELETE")
 	log.Println("...done")
 
 	log.Println("Running server...")
-	log.Fatal(http.ListenAndServe(":7080", router))
+	log.Fatal(http.ListenAndServe(hostPort, router))
 	log.Println("...done")
 }
 
+func acquireConfig(c *Config) {
+	yamlConfigFile, err := os.Open("config.yaml")
+	if err != nil {
+		log.Fatal("Could not acquire server configuration")
+	}
+	defer yamlConfigFile.Close()
+
+	decoder := yaml.NewDecoder(yamlConfigFile)
+	err = decoder.Decode(&c)
+	if err != nil {
+		log.Fatal("Could not acquire server configuration")
+	}
+}
+
 func setupDatabase() {
-	users = append(users, User{ID: 1, Name: "Eren", Surname: "Jeager", Age: 17})
-	users = append(users, User{ID: 2, Name: "Mikasa", Surname: "Ackerman", Age: 17})
-	users = append(users, User{ID: 3, Name: "Armin", Surname: "Arlert", Age: 16})
-	users = append(users, User{ID: 4, Name: "Levi", Surname: "Ackerman", Age: 27})
-	users = append(users, User{ID: 5, Name: "Annie", Surname: "Leonheart", Age: 18})
-	users = append(users, User{ID: 6, Name: "Frida", Surname: "Reiss", Age: 15})
-	users = append(users, User{ID: 7, Name: "Sasha", Surname: "Brouse", Age: 16})
-	users = append(users, User{ID: 8, Name: "Zoe", Surname: "Hange", Age: 29})
-	idCounter = 8
+	users = append(users, User{ID: getId(), Name: "Eren", Surname: "Jaeger", Age: 17})
+	users = append(users, User{ID: getId(), Name: "Mikasa", Surname: "Ackerman", Age: 17})
+	users = append(users, User{ID: getId(), Name: "Armin", Surname: "Arlert", Age: 16})
+	users = append(users, User{ID: getId(), Name: "Levi", Surname: "Ackerman", Age: 27})
+	users = append(users, User{ID: getId(), Name: "Annie", Surname: "Leonhart", Age: 18})
+	users = append(users, User{ID: getId(), Name: "Christa", Surname: "Lenz", Age: 15})
+	users = append(users, User{ID: getId(), Name: "Sasha", Surname: "Brouse", Age: 16})
+	users = append(users, User{ID: getId(), Name: "Zoë", Surname: "Hange", Age: 29})
+}
+
+func getId() string {
+	uuid := uuid.NewString()
+
+	return uuid
 }
 
 func createUser(w http.ResponseWriter, r *http.Request) {
@@ -61,8 +92,7 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	var user User
 	_ = json.NewDecoder(r.Body).Decode(&user)
 
-	idCounter++
-	user.ID = idCounter
+	user.ID = getId()
 
 	users = append(users, user)
 
@@ -81,9 +111,7 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
 	for _, user := range users {
-		id, _ := strconv.Atoi(params["id"])
-
-		if user.ID == id {
+		if user.ID == params["id"] {
 			json.NewEncoder(w).Encode(user)
 
 			return
@@ -99,9 +127,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
 	for index, value := range users {
-		id, _ := strconv.Atoi(params["id"])
-
-		if value.ID == id {
+		if value.ID == params["id"] {
 			var user User
 			_ = json.NewDecoder(r.Body).Decode(&user)
 
@@ -126,9 +152,7 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
 	for index, value := range users {
-		id, _ := strconv.Atoi(params["id"])
-
-		if value.ID == id {
+		if value.ID == params["id"] {
 			users = append(users[:index], users[index+1:]...)
 
 			break
