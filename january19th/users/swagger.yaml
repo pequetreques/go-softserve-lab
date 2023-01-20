@@ -1,0 +1,98 @@
+basePath: /
+consumes:
+    - application/json
+definitions:
+    User:
+        description: User represents the user for this application
+        x-go-package: softserve.com/january19th/users
+host: localhost:7080
+info:
+    description: |-
+        the purpose of this application is to provide an application
+        that is using plain go code to define an API
+
+        This should demonstrate all the possible comment annotations
+        that are available to turn go code into a fully compliant swagger 2.0 spec
+    title: Edgar's Users API.
+    version: 0.0.1
+paths:
+    /api/users:
+        get:
+            description: Returns all users from the system that the user has access to
+            operationId: getUsers
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: getUsers response
+                    schema:
+                        items:
+                            $ref: '#/definitions/User'
+                        type: array
+        post:
+            description: Creates a new user into the system that the user has access to
+            operationId: createUser
+            parameters:
+                - in: body
+                  name: Body
+                  schema:
+                    $ref: '#/definitions/User'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: createUser response
+    /api/users/{id}:
+        delete:
+            description: Deletes a specific user from the system that the user has access to
+            operationId: deleteUser
+            parameters:
+                - description: id to filter by
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: deleteUser response
+                    schema:
+                        $ref: '#/definitions/User'
+        get:
+            description: Returns a specific user from the system that the user has access to
+            operationId: getUser
+            parameters:
+                - description: id to filter by
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: getUser response
+                    schema:
+                        $ref: '#/definitions/User'
+        put:
+            description: Updates a specific user from the system that the user has access to
+            operationId: updateUser
+            parameters:
+                - description: id to filter by
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: updateUser response
+                    schema:
+                        $ref: '#/definitions/User'
+produces:
+    - application/json
+schemes:
+    - http
+swagger: "2.0"
