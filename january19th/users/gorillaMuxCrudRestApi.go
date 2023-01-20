@@ -3,18 +3,15 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"gopkg.in/yaml.v2"
 )
 
@@ -26,6 +23,8 @@ type Config struct {
 	Database struct {
 		Host string `yaml:"host"`
 		Port string `yaml:"port"`
+		Db   string `yaml:"db"`
+		Coll string `yaml:"coll"`
 	} `yaml:"database"`
 }
 
@@ -35,7 +34,7 @@ type Config struct {
 type User struct {
 	// the id for this user
 	// required: true
-	ID string `json:"id"`
+	Id string `json:"id"`
 
 	// the name for this user
 	// required: true
@@ -56,32 +55,15 @@ type User struct {
 
 var config Config
 var users []User
+var databaseURI string
+var err error
+var client *mongo.Client
+var collection *mongo.Collection
 
 func main() {
-	setupAndRunUsersServer()
-}
-
-func setupAndRunUsersServer() {
 	acquireConfig(&config)
-	serverHostPort := config.Server.Host + ":" + config.Server.Port
-
-	log.Println("Initializing server...")
-	router := mux.NewRouter()
-	log.Println("...done")
-
-	setupDatabase()
-
-	log.Println("Configuring server...")
-	router.HandleFunc("/api/users", createUser).Methods("POST")
-	router.HandleFunc("/api/users", getUsers).Methods("GET")
-	router.HandleFunc("/api/users/{id}", getUser).Methods("GET")
-	router.HandleFunc("/api/users/{id}", updateUser).Methods("PUT")
-	router.HandleFunc("/api/users/{id}", deleteUser).Methods("DELETE")
-	log.Println("...done")
-
-	log.Println("Running server...")
-	log.Fatal(http.ListenAndServe(serverHostPort, router))
-	log.Println("...done")
+	setupUsersDatabase()
+	setupAndRunUsersServer()
 }
 
 func acquireConfig(c *Config) {
@@ -98,52 +80,63 @@ func acquireConfig(c *Config) {
 	}
 }
 
-func setupDatabase() {
-	users = append(users, User{ID: getId(), Name: "Eren", Surname: "Jaeger", Age: 17})
-	users = append(users, User{ID: getId(), Name: "Mikasa", Surname: "Ackerman", Age: 17})
-	users = append(users, User{ID: getId(), Name: "Armin", Surname: "Arlert", Age: 16})
-	users = append(users, User{ID: getId(), Name: "Levi", Surname: "Ackerman", Age: 27})
-	users = append(users, User{ID: getId(), Name: "Annie", Surname: "Leonhart", Age: 18})
-	users = append(users, User{ID: getId(), Name: "Christa", Surname: "Lenz", Age: 15})
-	users = append(users, User{ID: getId(), Name: "Sasha", Surname: "Brouse", Age: 16})
-	users = append(users, User{ID: getId(), Name: "Zoë", Surname: "Hange", Age: 29})
-
-	databaseHostPort := config.Database.Host + ":" + config.Database.Port
-	databaseURI := "mongodb://" + databaseHostPort + "/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+1.2.3"
-
-	client, err := mongo.NewClient(options.Client().ApplyURI(databaseURI))
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		log.Println("MongoDB client ready to use")
-	}
-	ctx, _ := context.WithTimeout(context.Background(), 7*time.Second)
-	err = client.Connect(ctx)
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		log.Printf("MongoDB client connected to %s\n", databaseHostPort)
-	}
-	defer client.Disconnect(ctx)
-	err = client.Ping(ctx, readpref.Primary())
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		log.Println("MongoDB client connection test succeeded")
-	}
-	databases, err := client.ListDatabaseNames(ctx, bson.M{})
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		log.Println("MongoDB client acquired database names")
-	}
-	fmt.Println("These are the current databases:", databases)
-}
-
 func getId() string {
 	uuid := uuid.NewString()
 
 	return uuid
+}
+
+func setupUsersDatabase() {
+	databaseHostPort := config.Database.Host + ":" + config.Database.Port
+
+	databaseURI = "mongodb://" + databaseHostPort + "/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+1.2.3"
+
+	client, err = mongo.Connect(context.TODO(), options.Client().ApplyURI(databaseURI))
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		if err = client.Disconnect(context.TODO()); err != nil {
+			panic(err)
+		}
+	}()
+
+	collection = client.Database(config.Database.Db).Collection(config.Database.Coll)
+
+	documents := []interface{}{
+		User{Id: getId(), Name: "Eren", Surname: "Jaeger", Age: 17},
+		User{Id: getId(), Name: "Mikasa", Surname: "Ackerman", Age: 17},
+		User{Id: getId(), Name: "Armin", Surname: "Arlert", Age: 16},
+		User{Id: getId(), Name: "Levi", Surname: "Ackerman", Age: 27},
+		User{Id: getId(), Name: "Annie", Surname: "Leonhart", Age: 18},
+		User{Id: getId(), Name: "Christa", Surname: "Lenz", Age: 15},
+		User{Id: getId(), Name: "Sasha", Surname: "Brouse", Age: 16},
+		User{Id: getId(), Name: "Zoë", Surname: "Hange", Age: 29},
+		User{Id: getId(), Name: "Gabi", Surname: "Braun", Age: 12},
+	}
+
+	collection.InsertMany(context.TODO(), documents)
+}
+
+func setupAndRunUsersServer() {
+	serverHostPort := config.Server.Host + ":" + config.Server.Port
+
+	log.Println("Initializing server...")
+	router := mux.NewRouter()
+	log.Println("...done")
+
+	log.Println("Configuring server...")
+	router.HandleFunc("/api/users", createUser).Methods("POST")
+	router.HandleFunc("/api/users", getUsers).Methods("GET")
+	router.HandleFunc("/api/users/{id}", getUser).Methods("GET")
+	router.HandleFunc("/api/users/{id}", updateUser).Methods("PUT")
+	router.HandleFunc("/api/users/{id}", deleteUser).Methods("DELETE")
+	log.Println("...done")
+
+	log.Println("Running server...")
+	log.Fatal(http.ListenAndServe(serverHostPort, router))
+	log.Println("...done")
 }
 
 func createUser(w http.ResponseWriter, r *http.Request) {
@@ -167,11 +160,27 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	var user User
 	_ = json.NewDecoder(r.Body).Decode(&user)
 
-	user.ID = getId()
+	user.Id = getId()
 
-	users = append(users, user)
+	client, err = mongo.Connect(context.TODO(), options.Client().ApplyURI(databaseURI))
 
-	json.NewEncoder(w).Encode(user)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		if err = client.Disconnect(context.TODO()); err != nil {
+			panic(err)
+		}
+	}()
+
+	collection = client.Database(config.Database.Db).Collection(config.Database.Coll)
+
+	_, err := collection.InsertOne(context.TODO(), user)
+	if err != nil {
+		panic(err)
+	} else {
+		json.NewEncoder(w).Encode(user)
+	}
 }
 
 func getUsers(w http.ResponseWriter, r *http.Request) {
@@ -190,6 +199,31 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 	//       items:
 	//         "$ref": "#/definitions/User"
 	w.Header().Set("Content-Type", "application/json")
+
+	client, err = mongo.Connect(context.TODO(), options.Client().ApplyURI(databaseURI))
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		if err = client.Disconnect(context.TODO()); err != nil {
+			panic(err)
+		}
+	}()
+
+	collection = client.Database(config.Database.Db).Collection(config.Database.Coll)
+
+	filter := bson.D{}
+
+	cursor, err := collection.Find(context.TODO(), filter)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if err = cursor.All(context.TODO(), &users); err != nil {
+		panic(err)
+	}
 
 	json.NewEncoder(w).Encode(users)
 }
@@ -217,15 +251,36 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 
-	for _, user := range users {
-		if user.ID == params["id"] {
-			json.NewEncoder(w).Encode(user)
+	client, err = mongo.Connect(context.TODO(), options.Client().ApplyURI(databaseURI))
 
-			return
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		if err = client.Disconnect(context.TODO()); err != nil {
+			panic(err)
 		}
+	}()
+
+	collection = client.Database(config.Database.Db).Collection(config.Database.Coll)
+
+	filter := bson.D{{Key: "id", Value: params["id"]}}
+
+	cursor, err := collection.Find(context.TODO(), filter)
+
+	if err != nil {
+		panic(err)
 	}
 
-	json.NewEncoder(w).Encode(&User{})
+	if err = cursor.All(context.TODO(), &users); err != nil {
+		panic(err)
+	} else {
+		if len(users) != 0 {
+			json.NewEncoder(w).Encode(users)
+		} else {
+			json.NewEncoder(w).Encode(&User{})
+		}
+	}
 }
 
 func updateUser(w http.ResponseWriter, r *http.Request) {
@@ -250,25 +305,36 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	params := mux.Vars(r)
+	id := params["id"]
 
-	for index, value := range users {
-		if value.ID == params["id"] {
-			var user User
-			_ = json.NewDecoder(r.Body).Decode(&user)
+	var user User
+	_ = json.NewDecoder(r.Body).Decode(&user)
 
-			user.ID = users[index].ID
+	client, err = mongo.Connect(context.TODO(), options.Client().ApplyURI(databaseURI))
 
-			users[index].Name = user.Name
-			users[index].Surname = user.Surname
-			users[index].Age = user.Age
-
-			json.NewEncoder(w).Encode(user)
-
-			return
-		}
+	if err != nil {
+		log.Fatal(err)
 	}
+	defer func() {
+		if err = client.Disconnect(context.TODO()); err != nil {
+			panic(err)
+		}
+	}()
 
-	json.NewEncoder(w).Encode(users)
+	collection = client.Database(config.Database.Db).Collection(config.Database.Coll)
+
+	filter := bson.D{{Key: "id", Value: id}}
+
+	replacement := User{Id: id, Name: user.Name, Surname: user.Surname, Age: user.Age}
+
+	_, err = collection.ReplaceOne(context.TODO(), filter, replacement)
+
+	if err != nil {
+		panic(err)
+	} else {
+		user.Id = id
+		json.NewEncoder(w).Encode(user)
+	}
 }
 
 func deleteUser(w http.ResponseWriter, r *http.Request) {
@@ -294,12 +360,37 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 
-	for index, value := range users {
-		if value.ID == params["id"] {
-			users = append(users[:index], users[index+1:]...)
+	client, err = mongo.Connect(context.TODO(), options.Client().ApplyURI(databaseURI))
 
-			break
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		if err = client.Disconnect(context.TODO()); err != nil {
+			panic(err)
 		}
+	}()
+
+	collection = client.Database(config.Database.Db).Collection(config.Database.Coll)
+
+	filter := bson.D{{Key: "id", Value: params["id"]}}
+
+	_, err = collection.DeleteOne(context.TODO(), filter)
+
+	if err != nil {
+		panic(err)
+	}
+
+	filter = bson.D{}
+
+	cursor, err := collection.Find(context.TODO(), filter)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if err = cursor.All(context.TODO(), &users); err != nil {
+		panic(err)
 	}
 
 	json.NewEncoder(w).Encode(users)

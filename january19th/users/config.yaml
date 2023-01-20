@@ -5,3 +5,5 @@ server:
 database:
   host: "localhost"
   port: 27017
+  db: "api"
+  coll: "users"
