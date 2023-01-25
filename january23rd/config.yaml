@@ -1,0 +1,12 @@
+server:
+  host: "localhost"
+  port: 7080
+
+database:
+  uri: "mongodb://<host>:<port>/"
+  host: "localhost"
+  port: 27017
+  db: "api"
+  coll: "users"
+  migrations: "migrations"
+  template: "template"

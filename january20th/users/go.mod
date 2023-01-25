@@ -1,4 +1,4 @@
-module softserve.com/january19th/users
+module softserve.com/january20th/users
 
 go 1.19
 

@@ -1,0 +1,6 @@
+database:
+  uri: "mongodb://<host>:<port>/"
+  host: "localhost"
+  port: 27017
+  db: "api"
+  migrations: "db/migrations"
