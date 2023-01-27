@@ -10,4 +10,6 @@ use (
 	./january20th/users
 	./january23rd
 	./january24th
+	./january25th
+	./january25th/generated/proto
 )

@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package main;
+
+option go_package = "./proto";
+
+service UsersApi {
+    rpc GetUsers (Id) returns (User) {}
+}
+
+message User {
+    string id = 1;
+    string name = 2;
+    string surname = 3;
+    int32 age = 4;
+}
+
+message Id {
+    string id = 1;
+}
+
+message Users {
+    repeated User user = 1;
+}
