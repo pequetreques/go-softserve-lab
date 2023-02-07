@@ -18,7 +18,7 @@ func main() {
 	defer connection.Close()
 
 	client := pb.NewUsersApiClient(connection)
-	res, err := client.GetUsers(context.Background(), &pb.Id{Id: "7788"})
+	res, err := client.GetUser(context.Background(), &pb.IdRequest{Id: "7878"})
 
 	if err != nil {
 		log.Fatalln(err)

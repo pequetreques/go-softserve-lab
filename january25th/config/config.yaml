@@ -3,10 +3,8 @@ server:
   port: 7080
 
 database:
-  uri: "mongodb://<host>:<port>/"
+  uri: "mongodb://<host>:<port>/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+1.2.3"
   host: "localhost"
   port: 27017
   db: "api"
   coll: "users"
-  migrations: "migrations"
-  template: "template"

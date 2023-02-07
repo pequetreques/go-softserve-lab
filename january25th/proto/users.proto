@@ -5,20 +5,37 @@ package main;
 option go_package = "./proto";
 
 service UsersApi {
-    rpc GetUsers (Id) returns (User) {}
+    rpc CreateUser (CreateRequest) returns (UserResponse) {}
+    rpc GetUsers (EmptyRequest) returns (stream UserResponse) {}
+    rpc GetUser (IdRequest) returns (UserResponse) {}
+    rpc UpdateUser (IdBodyRequest) returns (UserResponse) {}
+    rpc DeleteUser (IdRequest) returns (UserResponse) {}
 }
 
-message User {
+message CreateRequest {
+    string name = 1;
+    string surname = 2;
+    int32 age = 3;
+}
+
+message EmptyRequest {
+    string empty = 1;
+}
+
+message IdRequest {
+    string id = 1;
+}
+
+message IdBodyRequest {
     string id = 1;
     string name = 2;
     string surname = 3;
     int32 age = 4;
 }
 
-message Id {
+message UserResponse {
     string id = 1;
-}
-
-message Users {
-    repeated User user = 1;
+    string name = 2;
+    string surname = 3;
+    int32 age = 4;
 }
